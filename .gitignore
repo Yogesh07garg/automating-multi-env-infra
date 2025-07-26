@@ -1,0 +1,13 @@
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfplan
+.terraform/
+.terraform.lock.hcl
+terraform-key
+terraform-key.pem
+terraform-key.pub
+id_rsa
+id_rsa.pub
+.env
+.env.*
