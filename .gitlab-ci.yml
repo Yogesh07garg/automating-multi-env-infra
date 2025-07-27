@@ -74,6 +74,11 @@ init_job:
     - clone_job
   script:
     - terraform init
+  artifacts:
+    paths:
+      - terraform-multi-environment/$TF_ROOT/.terraform/
+      - terraform-multi-environment/$TF_ROOT/.terraform.lock.hcl
+    expire_in: 1 hour
   <<: *rules_block
 
 # --------------------------
@@ -82,7 +87,7 @@ init_job:
 validate_job:
   stage: validate
   dependencies:
-    - clone_job
+    - init_job 
   script:
     - terraform validate
   <<: *rules_block
@@ -93,7 +98,7 @@ validate_job:
 plan_job:
   stage: plan
   dependencies:
-    - clone_job
+    - init_job
   script:
     - terraform plan -out=tfplan
   artifacts:
