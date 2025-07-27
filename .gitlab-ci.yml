@@ -8,6 +8,7 @@ stages:
 
 variables:
   TF_ROOT: "env/$CI_ENVIRONMENT_NAME"
+
 image: hashicorp/terraform:1.6.0
 
 # Apply these rules to all jobs
@@ -21,7 +22,7 @@ image: hashicorp/terraform:1.6.0
         CI_ENVIRONMENT_NAME: "staging"
     - if: '$CI_COMMIT_BRANCH == "main"'
       variables:
-        CI_ENVIRONMENT_NAME: "prod"
+        CI_ENVIRONMENT_NAME: "prd"
     - when: never
 
 before_script:
