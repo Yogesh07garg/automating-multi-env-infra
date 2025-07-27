@@ -39,7 +39,7 @@ remote-backend:
 clone_job:
   stage: cloning
   script:
-    - 
+    - |
       if [ ! -d "terraform-multi-environment" ]; then
         echo "Cloning repo..."
         git clone https://github.com/Yogesh07garg/terraform-multi-environment.git
