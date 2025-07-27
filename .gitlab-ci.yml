@@ -1,16 +1,13 @@
 image:
   name: hashicorp/terraform:1.6.0
-  entrypoint: [""]  # Fixes the "terraform sh" issue
+  entrypoint: [""]
 
 stages:
   - remote-backend
   - cloning
-  - init
-  - validate
-  - plan
-  - apply
+  - creation
+  - destroying
 
-# Use YAML anchor for DRY rules
 .rules_block: &rules_block
   rules:
     - if: '$CI_COMMIT_BRANCH == "dev"'
@@ -27,32 +24,22 @@ stages:
 variables:
   TF_ROOT: "env/$CI_ENVIRONMENT_NAME"
 
-before_script:
-  - cd terraform-multi-environment/$TF_ROOT
-
-# --------------------------
-# Job 1: Remote backend setup (S3 + DynamoDB)
-# --------------------------
 remote-backend:
   stage: remote-backend
-  before_script: []  # No global before_script
+  before_script: []
   script:
     - git clone https://github.com/Yogesh07garg/terraform-multi-environment.git
     - cd terraform-multi-environment/backend
-    - terraform init
+    - terraform init -reconfigure
     - terraform plan
     - terraform apply -auto-approve
-  when: manual  # Run only when triggered manually (one-time setup)
+  when: manual
   
 
-# --------------------------
-# Job 2: Clone repo for other stages
-# --------------------------
 clone_job:
   stage: cloning
-  before_script: []
   script:
-    - |
+    - 
       if [ ! -d "terraform-multi-environment" ]; then
         echo "Cloning repo..."
         git clone https://github.com/Yogesh07garg/terraform-multi-environment.git
@@ -65,58 +52,33 @@ clone_job:
     expire_in: 1 hour
   <<: *rules_block
 
-# --------------------------
-# Job 3: Terraform Init
-# --------------------------
-init_job:
-  stage: init
+creation_job:
+  stage: creation
   dependencies:
     - clone_job
+  before_script:
+    - cd terraform-multi-environment/$TF_ROOT
   script:
-    - terraform init
+    - terraform init -reconfigure
+    - terraform validate
+    - terraform plan -out=tfplan
+    - terraform apply -auto-approve tfplan
   artifacts:
     paths:
       - terraform-multi-environment/$TF_ROOT/.terraform/
       - terraform-multi-environment/$TF_ROOT/.terraform.lock.hcl
     expire_in: 1 hour
   <<: *rules_block
-
-# --------------------------
-# Job 4: Terraform Validate
-# --------------------------
-validate_job:
-  stage: validate
-  dependencies:
-    - init_job 
-  script:
-    - terraform validate
-  <<: *rules_block
-
-# --------------------------
-# Job 5: Terraform Plan
-# --------------------------
-plan_job:
-  stage: plan
-  dependencies:
-    - init_job
-  script:
-    - terraform plan -out=tfplan
-  artifacts:
-    paths:
-      - terraform-multi-environment/$TF_ROOT/tfplan
-    expire_in: 1 hour
-  <<: *rules_block
-
-# --------------------------
-# Job 6: Terraform Apply
-# --------------------------
-apply_job:
-  stage: apply
-  dependencies:
-    - plan_job
-  script:
-    - terraform apply -auto-approve tfplan
-  when: manual
   environment:
     name: $CI_ENVIRONMENT_NAME
-  <<: *rules_block
+
+destroy_job:
+  stage: destroying
+  dependencies:
+    - creation_job
+  before_script:
+    - cd terraform-multi-environment/$TF_ROOT
+  script:
+    - terraform init -reconfigure
+    - terraform destroy -auto-approve
+  when: manual
