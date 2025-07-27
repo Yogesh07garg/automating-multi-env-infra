@@ -1,0 +1,100 @@
+stages:
+  - remote-backend
+  - cloning
+  - init
+  - validate
+  - plan
+  - apply
+
+variables:
+  TF_ROOT: "env/$CI_ENVIRONMENT_NAME"
+image: hashicorp/terraform:1.6.0
+
+# Apply these rules to all jobs
+.default-rules:
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "dev"'
+      variables:
+        CI_ENVIRONMENT_NAME: "dev"
+    - if: '$CI_COMMIT_BRANCH == "staging"'
+      variables:
+        CI_ENVIRONMENT_NAME: "staging"
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      variables:
+        CI_ENVIRONMENT_NAME: "prod"
+    - when: never
+
+before_script:
+  - cd terraform-multi-environment/$TF_ROOT
+
+
+clone_job:
+  stage: cloning
+  before_script: []  # Skip global before_script for this job
+  script:
+    - |
+      if [ ! -d "terraform-multi-environment" ]; then
+        echo "Cloning repo..."
+        git clone https://github.com/Yogesh07garg/terraform-multi-environment.git
+      else
+        echo "Repo already exists. Skipping clone."
+      fi
+  artifacts:
+    paths:
+      - terraform-multi-environment/
+    expire_in: 1 hour
+  rules:
+    - !reference [.default-rules, rules]
+
+remote-backend:
+  stage: remote-backend
+  before_script:
+    - cd terraform-multi-environment/backend
+  script:
+    - terraform init
+    - terraform plan
+    - terraform apply -auto-approve
+  when: manual
+
+init_job:
+  stage: init
+  dependencies:
+    - clone_job
+  script:
+    - terraform init
+  rules:
+    - !reference [.default-rules, rules]
+
+validate_job:
+  stage: validate
+  dependencies:
+    - clone_job
+  script:
+    - terraform validate
+  rules:
+    - !reference [.default-rules, rules]
+
+plan_job:
+  stage: plan
+  dependencies:
+    - clone_job
+  script:
+    - terraform plan -out=tfplan
+  artifacts:
+    paths:
+      - terraform-multi-environment/$TF_ROOT/tfplan
+    expire_in: 1 hour
+  rules:
+    - !reference [.default-rules, rules]
+
+apply_job:
+  stage: apply
+  dependencies:
+    - plan_job
+  script:
+    - terraform apply -auto-approve tfplan
+  when: manual
+  environment:
+    name: $CI_ENVIRONMENT_NAME
+  rules:
+    - !reference [.default-rules, rules]
