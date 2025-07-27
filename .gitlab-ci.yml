@@ -11,7 +11,7 @@ variables:
 
 image:
   name: hashicorp/terraform:1.6.0
-  
+  entrypoint: [""]
 
 
 # Apply these rules to all jobs
