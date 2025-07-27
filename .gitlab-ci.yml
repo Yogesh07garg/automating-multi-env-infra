@@ -75,11 +75,17 @@ creation_job:
 
 destroy_job:
   stage: destroying
-  dependencies:
-    - creation_job
   before_script:
+    - |
+      if [ ! -d "terraform-multi-environment" ]; then
+        git clone https://github.com/Yogesh07garg/terraform-multi-environment.git
+      fi
+    
     - cd terraform-multi-environment/$TF_ROOT
   script:
+    - echo "$TF_PUBLIC_KEY" > terraform-key.pub
     - terraform init -reconfigure
     - terraform destroy -auto-approve
   when: manual
+  <<: *rules_block
+
