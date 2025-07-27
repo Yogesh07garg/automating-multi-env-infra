@@ -43,7 +43,7 @@ remote-backend:
     - terraform plan
     - terraform apply -auto-approve
   when: manual  # Run only when triggered manually (one-time setup)
-  allow_failure: false
+  
 
 # --------------------------
 # Job 2: Clone repo for other stages
