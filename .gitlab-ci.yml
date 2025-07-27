@@ -9,7 +9,10 @@ stages:
 variables:
   TF_ROOT: "env/$CI_ENVIRONMENT_NAME"
 
-image: hashicorp/terraform:1.6.0
+image:
+  name: hashicorp/terraform:1.6.0
+  
+
 
 # Apply these rules to all jobs
 .default-rules:
