@@ -1,3 +1,7 @@
+image:
+  name: hashicorp/terraform:1.6.0
+  entrypoint: [""]  # Fixes the "terraform sh" issue
+
 stages:
   - remote-backend
   - cloning
@@ -6,16 +10,8 @@ stages:
   - plan
   - apply
 
-variables:
-  TF_ROOT: "env/$CI_ENVIRONMENT_NAME"
-
-image:
-  name: hashicorp/terraform:1.6.0
-  entrypoint: [""]
-
-
-# Apply these rules to all jobs
-.default-rules:
+# Use YAML anchor for DRY rules
+.rules_block: &rules_block
   rules:
     - if: '$CI_COMMIT_BRANCH == "dev"'
       variables:
@@ -28,13 +24,33 @@ image:
         CI_ENVIRONMENT_NAME: "prd"
     - when: never
 
+variables:
+  TF_ROOT: "env/$CI_ENVIRONMENT_NAME"
+
 before_script:
   - cd terraform-multi-environment/$TF_ROOT
 
+# --------------------------
+# Job 1: Remote backend setup (S3 + DynamoDB)
+# --------------------------
+remote-backend:
+  stage: remote-backend
+  before_script: []  # No global before_script
+  script:
+    - git clone https://github.com/Yogesh07garg/terraform-multi-environment.git
+    - cd terraform-multi-environment/backend
+    - terraform init
+    - terraform plan
+    - terraform apply -auto-approve
+  when: manual  # Run only when triggered manually (one-time setup)
+  allow_failure: false
 
+# --------------------------
+# Job 2: Clone repo for other stages
+# --------------------------
 clone_job:
   stage: cloning
-  before_script: []  # Skip global before_script for this job
+  before_script: []
   script:
     - |
       if [ ! -d "terraform-multi-environment" ]; then
@@ -47,37 +63,33 @@ clone_job:
     paths:
       - terraform-multi-environment/
     expire_in: 1 hour
-  rules:
-    - !reference [.default-rules, rules]
+  <<: *rules_block
 
-remote-backend:
-  stage: remote-backend
-  before_script:
-    - cd terraform-multi-environment/backend
-  script:
-    - terraform init
-    - terraform plan
-    - terraform apply -auto-approve
-  when: manual
-
+# --------------------------
+# Job 3: Terraform Init
+# --------------------------
 init_job:
   stage: init
   dependencies:
     - clone_job
   script:
     - terraform init
-  rules:
-    - !reference [.default-rules, rules]
+  <<: *rules_block
 
+# --------------------------
+# Job 4: Terraform Validate
+# --------------------------
 validate_job:
   stage: validate
   dependencies:
     - clone_job
   script:
     - terraform validate
-  rules:
-    - !reference [.default-rules, rules]
+  <<: *rules_block
 
+# --------------------------
+# Job 5: Terraform Plan
+# --------------------------
 plan_job:
   stage: plan
   dependencies:
@@ -88,9 +100,11 @@ plan_job:
     paths:
       - terraform-multi-environment/$TF_ROOT/tfplan
     expire_in: 1 hour
-  rules:
-    - !reference [.default-rules, rules]
+  <<: *rules_block
 
+# --------------------------
+# Job 6: Terraform Apply
+# --------------------------
 apply_job:
   stage: apply
   dependencies:
@@ -100,5 +114,4 @@ apply_job:
   when: manual
   environment:
     name: $CI_ENVIRONMENT_NAME
-  rules:
-    - !reference [.default-rules, rules]
+  <<: *rules_block
