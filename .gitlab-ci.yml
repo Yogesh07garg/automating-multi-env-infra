@@ -59,6 +59,7 @@ creation_job:
   before_script:
     - cd terraform-multi-environment/$TF_ROOT
   script:
+    - echo "$TF_PUBLIC_KEY" > terraform-key.pub
     - terraform init -reconfigure
     - terraform validate
     - terraform plan -out=tfplan
